@@ -61,10 +61,10 @@ Agradecemos mucho tu contribución al proyecto. ¡Todas las ideas y sugerencias 
 
 ## Colaboradores
 
- >> Pablo Javier Barrio Navarro
- >> Pablo De La Hera Martínez
- >> David Ondicol García
- 
+ > Pablo Javier Barrio Navarro 
+  Pablo De La Hera Martínez
+  David Ondicol García
+
 ## Contacto
 
 Si tienes alguna pregunta, sugerencia o problema, no dudes en contactarnos. Puedes enviar un correo electrónico a [pbarrn00@estudiantes.unileon.es](mailto:pbarrn00@estudiantes.unileon.es) o visitar nuestro sitio web [www.onkisko.com](https://onkisko.com).
