@@ -1,7 +1,7 @@
 import cv2 
 import numpy as np
 
-# Cargar el clasificador frontal de Haar para detección de rostros
+# Cargar el clasificador frontal de Haar para detección de rostros utilizado en la práctica 4 
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
 # Inicializar la cámara
