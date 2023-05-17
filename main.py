@@ -5,7 +5,7 @@ import numpy as np
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
 # Inicializar la cámara
-cap = cv2.VideoCapture(0)
+video = cv2.VideoCapture(0)
 
 # Variable para contar las imágenes capturadas
 image_count = 0
@@ -13,7 +13,7 @@ image_count = 0
 # Bucle principal
 while True:
     # Leer el fotograma actual desde la cámara
-    ret, frame = cap.read()
+    ret, frame = video.read()
 
     # Convertir a escala de grises
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -43,5 +43,5 @@ while True:
         break
 
 # Liberar los recursos
-cap.release()
+video.release()
 cv2.destroyAllWindows()

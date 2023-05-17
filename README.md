@@ -22,11 +22,11 @@ Sigue estos pasos para instalar y ejecutar el proyecto en tu máquina local:
 
 1. Clona este repositorio en tu máquina local.
 
-``` git clone https://github.com/tu_usuario/reconocimiento-facial.git ```
+``` git clone https://github.com/pbarrn00/OpenCV-Authenticator ```
 
 2. Navega hasta el directorio del proyecto.
 
-``` cd reconocimiento-facial ```
+``` cd OpenCV-Authenticator ```
 
 3. Instala las dependencias del proyecto.
 
@@ -59,6 +59,12 @@ Si deseas contribuir a este proyecto, puedes seguir los pasos a continuación:
 
 Agradecemos mucho tu contribución al proyecto. ¡Todas las ideas y sugerencias son bienvenidas!
 
+## Colaboradores
+
+ >> Pablo Javier Barrio Navarro
+ >> Pablo De La Hera Martínez
+ >> David Ondicol García
+ 
 ## Contacto
 
 Si tienes alguna pregunta, sugerencia o problema, no dudes en contactarnos. Puedes enviar un correo electrónico a [pbarrn00@estudiantes.unileon.es](mailto:pbarrn00@estudiantes.unileon.es) o visitar nuestro sitio web [www.onkisko.com](https://onkisko.com).
