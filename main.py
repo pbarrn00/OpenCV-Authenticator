@@ -39,7 +39,7 @@ while True:
 
     k = cv2.waitKey(1)
 
-    if k == 27 or image_count >= max_images:
+    if k == 27:
         break
 
     # Iterar sobre los rostros detectados
@@ -53,11 +53,12 @@ while True:
         # Guardar la imagen del rostro recortado
 
         if k == ord('s'):
-            image_filename = os.path.join(carpeta_rostros, 'rostro_{}.jpg'.format(image_count))
-            image_count += 1
-            cv2.imwrite(image_filename, face_image)
-            print(f"Imagen {image_filename} guardada.")
-            cv2.imshow('Rostros', face_image)
+            for i in range(0, max_images):
+                image_filename = os.path.join(carpeta_rostros, 'rostro_{}.jpg'.format(image_count))
+                image_count += 1
+                cv2.imwrite(image_filename, face_image)
+                print(f"Imagen {image_filename} guardada.")
+                cv2.imshow('Rostros', face_image)
 
     # Mostrar el fotograma con los rectángulos dibujados
     #cv2.rectangle(frame, (10, 5), (450, 25), (255, 255, 255), -1)
