@@ -16,7 +16,9 @@ except IndexError:
     print('Error: No se ha proporcionado el número máximo de imágenes como parámetro.')
     sys.exit(1)
 
-cap = cv2.VideoCapture(0)
+# Inicializar la cámara 
+# Está inicializada a 1 para que utilice app móvil IRIUN WEBCAM
+cap = cv2.VideoCapture(1)
 faceClassif = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
 count = 0
 max_images = int(sys.argv[1])  # Número máximo de imágenes que se guardarán
