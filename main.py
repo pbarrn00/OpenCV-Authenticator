@@ -55,7 +55,7 @@ def autenticar(label_map):
     while True:
         ret, frame = video_capture.read()
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.05, minNeighbors=4, minSize=(30, 30))
+        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
 
         for (x, y, w, h) in faces:
             roi_gray = gray[y:y + h, x:x + w]
@@ -89,7 +89,7 @@ def autenticar(label_map):
 label_map = entrenar_modelo()
 
 # Guardar label_map en un archivo JSON
-guardar_label_map(label_map)
+#guardar_label_map(label_map)
 
 # Autenticar a partir del modelo entrenado
 # Cargar label_map desde el archivo JSON

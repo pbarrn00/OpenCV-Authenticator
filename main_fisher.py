@@ -3,7 +3,7 @@ import numpy as np
 import os
 
 # Cargar el clasificador frontal de Haar para detección de rostros utilizado en la práctica 4
-face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+face_cascade = cv2.CascadeClassifier('clasificadores/haarcascade_frontalface_default.xml')
 
 # Inicializar la cámara 
 # Está inicializada a 1 para que utilice app móvil IRIUN WEBCAM
@@ -37,7 +37,7 @@ modelo = cv2.face.FisherFaceRecognizer_create()
 #modelo.write('modelo_fisherface.xml')
 
 # Leer el modelo desde un fichero
-modelo.read('modelo_fisherface.xml')
+modelo.read('modelos/modelo_fisherface.xml')
 
 # Variables para contar las imágenes capturadas y el usuario identificado
 image_count = 0
