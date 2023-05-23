@@ -6,9 +6,37 @@ import os
 # Cargar el clasificador frontal de Haar para detección de rostros utilizado en la práctica 4
 face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
 
+def detectar_movimiento(frame, frame_anterior):
+    # Convertir los frames a escala de grises
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    gray_anterior = cv2.cvtColor(frame_anterior, cv2.COLOR_BGR2GRAY)
+    
+    # Calcular la diferencia absoluta entre los frames
+    diff = cv2.absdiff(gray_anterior, gray)
+    
+    # Aplicar un umbral para obtener una imagen binaria del movimiento
+    umbral = 30
+    _, umbralizado = cv2.threshold(diff, umbral, 255, cv2.THRESH_BINARY)
+    
+    # Encontrar los contornos de los objetos en movimiento
+    contornos, _ = cv2.findContours(umbralizado, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    # Verificar si se detecta movimiento significativo
+    area_minima = 500  # Área mínima para considerar como movimiento
+    movimiento_detectado = False
+    for contorno in contornos:
+        if cv2.contourArea(contorno) > area_minima:
+            movimiento_detectado = True
+            break
+    
+    return movimiento_detectado
+
+
 # Inicializar la cámara 
 # Está inicializada a 1 para que utilice app móvil IRIUN WEBCAM
 video = cv2.VideoCapture(1)
+
+_, frame_anterior = video.read()
 
 # Definir y cargar usuarios registrados
 usuarios_dict = {}  # Diccionario para mapear nombres de usuarios a etiquetas
@@ -56,16 +84,20 @@ while True:
     if k == 27:
         break
 
-    # Verificar si hay movimiento en la imagen
-    if prev_frame is not None:
-        diff_frame = cv2.absdiff(prev_frame, gray)
-        motion_area = np.sum(diff_frame > 30)
-        if motion_area > static_threshold:
-            usuario_identificado = None
-            prev_frame = None
-            continue
-
-    prev_frame = gray.copy()
+    # Leer el siguiente frame
+    _, frame = video.read()
+    
+    # Comprobar si hay movimiento significativo
+    hay_movimiento = detectar_movimiento(frame, frame_anterior)
+    
+    # Actualizar el frame anterior con el frame actual
+    frame_anterior = frame.copy()
+    
+    # Mostrar el resultado
+    if hay_movimiento:
+        print("Persona real detectada")
+    else:
+        print("Imagen estática")
 
     # Iterar sobre los rostros detectados
     for (x, y, w, h) in faces:
