@@ -6,23 +6,17 @@ import os
 # Cargar el clasificador frontal de Haar para detección de rostros utilizado en la práctica 4
 face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
 
-def detectar_movimiento(frame, frame_anterior):
-    # Convertir los frames a escala de grises
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    gray_anterior = cv2.cvtColor(frame_anterior, cv2.COLOR_BGR2GRAY)
-    
-    # Calcular la diferencia absoluta entre los frames
-    diff = cv2.absdiff(gray_anterior, gray)
+def detectar_movimiento(frames, umbral, area_minima):
+    # Calcular la diferencia absoluta entre los frames acumulados
+    diff = cv2.absdiff(frames[0], frames[-1])
     
     # Aplicar un umbral para obtener una imagen binaria del movimiento
-    umbral = 30
     _, umbralizado = cv2.threshold(diff, umbral, 255, cv2.THRESH_BINARY)
     
     # Encontrar los contornos de los objetos en movimiento
-    contornos, _ = cv2.findContours(umbralizado, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    _, contornos, _ = cv2.findContours(umbralizado, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     
     # Verificar si se detecta movimiento significativo
-    area_minima = 500  # Área mínima para considerar como movimiento
     movimiento_detectado = False
     for contorno in contornos:
         if cv2.contourArea(contorno) > area_minima:
@@ -36,7 +30,16 @@ def detectar_movimiento(frame, frame_anterior):
 # Está inicializada a 1 para que utilice app móvil IRIUN WEBCAM
 video = cv2.VideoCapture(1)
 
-_, frame_anterior = video.read()
+# Parámetros de ajuste
+n_frames = 5  # Número de frames a acumular
+umbral = 50  # Ajusta este valor según tus necesidades
+area_minima = 1000  # Ajusta este valor según tus necesidades
+
+# Leer el primer frame
+_, frame = video.read()
+
+# Inicializar la lista de frames acumulados
+frames_acumulados = [frame] * n_frames
 
 # Definir y cargar usuarios registrados
 usuarios_dict = {}  # Diccionario para mapear nombres de usuarios a etiquetas
@@ -87,17 +90,20 @@ while True:
     # Leer el siguiente frame
     _, frame = video.read()
     
-    # Comprobar si hay movimiento significativo
-    hay_movimiento = detectar_movimiento(frame, frame_anterior)
+    # Agregar el frame actual a la lista de frames acumulados
+    frames_acumulados.append(frame)
     
-    # Actualizar el frame anterior con el frame actual
-    frame_anterior = frame.copy()
+    # Mantener solo los últimos n_frames en la lista
+    frames_acumulados = frames_acumulados[-n_frames:]
+    
+    # Comprobar si hay movimiento significativo
+    hay_movimiento = detectar_movimiento(frames_acumulados, umbral, area_minima)
     
     # Mostrar el resultado
     if hay_movimiento:
         print("Persona real detectada")
     else:
-        print("Imagen estática")
+        print("Imagen estática o movimiento insignificante")
 
     # Iterar sobre los rostros detectados
     for (x, y, w, h) in faces:
