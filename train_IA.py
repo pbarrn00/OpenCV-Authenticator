@@ -20,7 +20,7 @@ except IndexError:
 # Está inicializada a 1 para que utilice app móvil IRIUN WEBCAM
 cap = cv2.VideoCapture(0)
 faceClassif = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
-count = 1000
+count = 50
 max_images = int(sys.argv[1])  # Número máximo de imágenes que se guardarán
 
 while True:
