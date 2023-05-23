@@ -1,101 +1,100 @@
 import cv2
-import numpy as np
 import os
+import numpy as np
+import json
 
-# Cargar el clasificador frontal de Haar para detección de rostros utilizado en la práctica 4
-face_cascade = cv2.CascadeClassifier('clasificadores/haarcascade_frontalface_default.xml')
+def guardar_label_map(label_map):
+    with open('json/label_map.json', 'w') as file:
+        json.dump(label_map, file)
 
-# Inicializar la cámara 
-# Está inicializada a 1 para que utilice app móvil IRIUN WEBCAM
-video = cv2.VideoCapture(0)
+def cargar_label_map():
+    with open('json/label_map.json', 'r') as file:
+        label_map = json.load(file)
+    return label_map
 
-# Definir y cargar usuarios registrados
-usuarios_dict = {}  # Diccionario para mapear nombres de usuarios a etiquetas
-usuarios_imagenes = []
-usuarios_etiquetas = []
-carpeta_usuarios = './usuarios_registrados'
+def entrenar_modelo():
+    data_dir = 'usuarios_registrados'
+    image_paths = []
+    labels = []
+    label_id = 0
+    label_map = {}
 
-usuarios = os.listdir(carpeta_usuarios)
-for i, usuario in enumerate(usuarios):
-    usuarios_dict[usuario] = i
+    for root, dirs, files in os.walk(data_dir):
+        for file in files:
+            if file.endswith('.jpg') or file.endswith('.png'):
+                image_path = os.path.join(root, file)
+                label = os.path.basename(root)
 
-    carpeta_usuario = os.path.join(carpeta_usuarios, usuario)
-    if os.path.isdir(carpeta_usuario):
-        for imagen_nombre in os.listdir(carpeta_usuario):
-            imagen_path = os.path.join(carpeta_usuario, imagen_nombre)
-            
-            imagen = cv2.imread(imagen_path, cv2.IMREAD_GRAYSCALE)
+                if label not in label_map:
+                    label_map[label] = label_id
+                    label_id += 1
 
-            usuarios_imagenes.append(imagen)
-            usuarios_etiquetas.append(i)
+                image_paths.append(image_path)
+                labels.append(label_map[label])
 
-# Crear el modelo de reconocimiento facial
-modelo = cv2.face.FisherFaceRecognizer_create()
-#modelo.train(usuarios_imagenes, np.array(usuarios_etiquetas))
+    face_images = []
+    for image_path in image_paths:
+        image = cv2.imread(image_path)
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        face_images.append(gray)
 
-# Guardamos el modelo en un fichero
-#modelo.write('modelo_fisherface.xml')
+    recognizer = cv2.face.FisherFaceRecognizer_create()
+    recognizer.train(face_images, np.array(labels, dtype=np.int32))
+    recognizer.save('modelos\modelo_fisher.xml')
+    print("Modelo entrenado y guardado con éxito.")
 
-# Leer el modelo desde un fichero
-modelo.read('modelos/modelo_fisherface.xml')
+    return label_map
 
-# Variables para contar las imágenes capturadas y el usuario identificado
-image_count = 0
-usuario_identificado = None
+def autenticar(label_map):
+    face_cascade = cv2.CascadeClassifier('clasificadores/haarcascade_frontalface_default.xml')
+    recognizer = cv2.face.FisherFaceRecognizer_create()
+    recognizer.read('modelos\modelo_fisher.xml')
 
-# Bucle principal
-while True:
-    # Leer el fotograma actual desde la cámara
-    ret, frame = video.read()
+    video_capture = cv2.VideoCapture(0)
 
-    # Convertir a escala de grises
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    while True:
+        ret, frame = video_capture.read()
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
 
-    # Detectar rostros en la imagen
-    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.05, minNeighbors=4, minSize=(50, 50))
+        for (x, y, w, h) in faces:
+            roi_gray = gray[y:y + h, x:x + w]
+            roi_color = frame[y:y + h, x:x + w]
 
-    k = cv2.waitKey(1)
+            # Redimensionar la imagen de prueba a las mismas dimensiones que las imágenes de entrenamiento
+            roi_gray_resized = cv2.resize(roi_gray, (150, 150))  # Reemplaza "ancho" y "alto" con las dimensiones adecuadas
 
-    if k == 27:
-        break
+            label_id, confidence = recognizer.predict(roi_gray_resized)
+            print(confidence)
+            if confidence < 100:
+                label = [k for k, v in label_map.items() if v == label_id][0]
+                color = (0, 255, 0)
+                text = label
+            else:
+                label = "Desconocido"
+                color = (0, 0, 255)
+                text = label
 
-    # Iterar sobre los rostros detectados
-    for (x, y, w, h) in faces:
+            cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
+            cv2.putText(frame, text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
 
-        # Recortar el rostro de la imagen original
-        face_image = gray[y:y+h, x:x+w]
+        cv2.putText(frame, f'Presione ESC para salir', (10, 20), 2, 0.5, (128, 0, 255), 1, cv2.LINE_AA)
+        cv2.imshow(f'Sistema de Reconocimiento Facial', frame)
 
-        # Redimensionar la imagen a 150x150 píxeles
-        face_image = cv2.resize(face_image, (150, 150), interpolation=cv2.INTER_CUBIC)
+        if cv2.waitKey(1) == 27 :
+            break
 
-        # Realizar la predicción del usuario
-        etiqueta_predicha, confianza = modelo.predict(face_image)
+    video_capture.release()
+    cv2.destroyAllWindows()
 
-        # Buscar el nombre del usuario en base a la etiqueta predicha
-        nombre_usuario = [usuario for usuario, etiqueta in usuarios_dict.items() if etiqueta == etiqueta_predicha][0]
 
-        # Dibujar un rectángulo alrededor del rostro
-        if usuario_identificado == nombre_usuario:
-            color_rectangulo = (0, 255, 0)  # Color verde para usuarios identificados
-        else:
-            color_rectangulo = (0, 0, 255)  # Color rojo para usuarios desconocidos
+# Entrenar el modelo (ejecutar solo una vez)
+label_map = entrenar_modelo()
 
-        cv2.rectangle(frame, (x, y), (x+w, y+h), color_rectangulo, 2)
-        print(confianza)
-        if confianza < 40:  # Umbral de confianza para la identificación del usuario
-            usuario_identificado = nombre_usuario
-            color_rectangulo = (0, 255, 0)  # Color verde para usuarios registrados
-        else:
-            usuario_identificado = "Desconocido"
-            color_rectangulo = (0, 0, 255)  # Color rojo para usuarios no registrados
+# Guardar label_map en un archivo JSON
+guardar_label_map(label_map)
 
-        # Mostrar el nombre del usuario en la interfaz gráfica
-        cv2.putText(frame, usuario_identificado, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color_rectangulo, 1, cv2.LINE_AA)
-        
-    cv2.putText(frame, f'Presione ESC para salir', (10, 20), 2, 0.5, (128, 0, 255), 1, cv2.LINE_AA)
-    # Mostrar el fotograma con los rectángulos dibujados
-    cv2.imshow('Streaming de Video', frame)
-
-# Liberar los recursos
-video.release()
-cv2.destroyAllWindows()
+# Autenticar a partir del modelo entrenado
+# Cargar label_map desde el archivo JSON
+label_map = cargar_label_map()
+autenticar(label_map)
