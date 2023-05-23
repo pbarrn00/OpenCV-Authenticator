@@ -31,10 +31,10 @@ for i, usuario in enumerate(usuarios):
 
 # Crear el modelo de reconocimiento facial
 modelo = cv2.face.FisherFaceRecognizer_create()
-# modelo.train(usuarios_imagenes, np.array(usuarios_etiquetas))
+#modelo.train(usuarios_imagenes, np.array(usuarios_etiquetas))
 
 # Guardamos el modelo en un fichero
-# modelo.write('modelo_fisherface.xml')
+#modelo.write('modelo_fisherface.xml')
 
 # Leer el modelo desde un fichero
 modelo.read('modelo_fisherface.xml')
@@ -82,7 +82,7 @@ while True:
 
         cv2.rectangle(frame, (x, y), (x+w, y+h), color_rectangulo, 2)
         print(confianza)
-        if confianza < 70:  # Umbral de confianza para la identificación del usuario
+        if confianza < 40:  # Umbral de confianza para la identificación del usuario
             usuario_identificado = nombre_usuario
             color_rectangulo = (0, 255, 0)  # Color verde para usuarios registrados
         else:
