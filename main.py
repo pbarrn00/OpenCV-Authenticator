@@ -45,7 +45,7 @@ while True:
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
     # Detectar rostros en la imagen
-    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5, minSize=(30, 30))
+    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.05, minNeighbors=4, minSize=(50, 50))
 
     k = cv2.waitKey(1)
 
@@ -71,7 +71,7 @@ while True:
             color_rectangulo = (0, 0, 255)  # Color rojo para usuarios desconocidos
 
         cv2.rectangle(frame, (x, y), (x+w, y+h), color_rectangulo, 2)
-
+        print(confianza)
         if confianza < 70:  # Umbral de confianza para la identificación del usuario
             usuario_identificado = nombre_usuario
             color_rectangulo = (0, 255, 0)  # Color verde para usuarios registrados

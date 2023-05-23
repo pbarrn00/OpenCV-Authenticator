@@ -7,11 +7,15 @@ import os
 face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
 
 def detectar_movimiento(frames, umbral, area_minima):
-    # Calcular la diferencia absoluta entre los frames acumulados
-    diff = cv2.absdiff(frames[0], frames[-1])
+
+    # Calcular la diferencia acumulativa entre los frames
+    diff_acumulada = np.zeros_like(frames[0], dtype=np.float32)
+    for frame in frames:
+        diff_frame = cv2.absdiff(frame, frames[0])
+        diff_acumulada += diff_frame.astype(np.float32)
     
     # Aplicar un umbral para obtener una imagen binaria del movimiento
-    _, umbralizado = cv2.threshold(diff, umbral, 255, cv2.THRESH_BINARY)
+    umbralizado = cv2.threshold(diff_acumulada, umbral, 255, cv2.THRESH_BINARY)[1].astype(np.uint8)
     
     # Encontrar los contornos de los objetos en movimiento
     _, contornos, _ = cv2.findContours(umbralizado, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -31,15 +35,18 @@ def detectar_movimiento(frames, umbral, area_minima):
 video = cv2.VideoCapture(1)
 
 # Parámetros de ajuste
-n_frames = 5  # Número de frames a acumular
-umbral = 50  # Ajusta este valor según tus necesidades
-area_minima = 1000  # Ajusta este valor según tus necesidades
+n_frames = 2  # Número de frames a acumular
+umbral = 30  # Ajusta este valor según tus necesidades
+area_minima = 100  # Ajusta este valor según tus necesidades
 
 # Leer el primer frame
 _, frame = video.read()
 
+# Convertir a escala de grises
+gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
 # Inicializar la lista de frames acumulados
-frames_acumulados = [frame] * n_frames
+frames_acumulados = [gray] * n_frames
 
 # Definir y cargar usuarios registrados
 usuarios_dict = {}  # Diccionario para mapear nombres de usuarios a etiquetas
@@ -67,31 +74,16 @@ modelo.train(usuarios_imagenes, np.array(usuarios_etiquetas, dtype=np.int32))
 image_count = 0
 usuario_identificado = None
 
-# Variables para la detección de movimiento
-prev_frame = None
-static_threshold = 5000  # Umbral para considerar que la imagen es estática
-
 # Bucle principal
 while True:
-    # Leer el fotograma actual desde la cámara
-    ret, frame = video.read()
+   # Leer el siguiente frame
+    _, frame = video.read()
 
     # Convertir a escala de grises
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-    # Detectar rostros en la imagen
-    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5, minSize=(30, 30))
-
-    k = cv2.waitKey(1)
-
-    if k == 27:
-        break
-
-    # Leer el siguiente frame
-    _, frame = video.read()
-    
     # Agregar el frame actual a la lista de frames acumulados
-    frames_acumulados.append(frame)
+    frames_acumulados.append(gray)
     
     # Mantener solo los últimos n_frames en la lista
     frames_acumulados = frames_acumulados[-n_frames:]
@@ -104,6 +96,14 @@ while True:
         print("Persona real detectada")
     else:
         print("Imagen estática o movimiento insignificante")
+
+    # Detectar rostros en la imagen
+    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5, minSize=(30, 30))
+
+    k = cv2.waitKey(1)
+
+    if k == 27:
+        break
 
     # Iterar sobre los rostros detectados
     for (x, y, w, h) in faces:
