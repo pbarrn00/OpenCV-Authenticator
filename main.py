@@ -8,7 +8,7 @@ face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
 
 # Inicializar la cámara 
 # Está inicializada a 1 para que utilice app móvil IRIUN WEBCAM
-video = cv2.VideoCapture(1)
+video = cv2.VideoCapture(0)
 
 # Definir y cargar usuarios registrados
 usuarios_dict = {}  # Diccionario para mapear nombres de usuarios a etiquetas
