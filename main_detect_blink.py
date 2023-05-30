@@ -78,59 +78,53 @@ def autenticar(label_map):
     detector = dlib.get_frontal_face_detector()
     predictor = dlib.shape_predictor('shape/shape_predictor_68_face_landmarks.dat')
 
-    video_capture = cv2.VideoCapture(1)
+    video_capture = cv2.VideoCapture(0)
 
-    tiempo_parpadeo = 0.3  # Tiempo en segundos para considerar un parpadeo
-    tiempo_estatico = 5.0  # Tiempo en segundos para considerar una imagen estática
+    tiempo_estatico = 10.0 # Tiempo en segundos para considerar una imagen estática
 
     tiempo_inicial_parpadeo = time.time()
-    tiempo_inicial_estatico = time.time()
-    parpadeo_detectado = False
-    rostro_estatico = False
 
     while True:
         ret, frame = video_capture.read()
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
 
-        if len(faces) == 0:
-            if rostro_estatico:
-                tiempo_actual_estatico = time.time()
-                tiempo_transcurrido_estatico = tiempo_actual_estatico - tiempo_inicial_estatico
-                if tiempo_transcurrido_estatico >= tiempo_estatico:
-                    label = "Imagen estática"
-                    color = (255, 0, 0)
-                    text = label
-                    rostro_estatico = True
+        for (x, y, w, h) in faces:
+            roi_gray = gray[y:y + h, x:x + w]
+            roi_color = frame[y:y + h, x:x + w]
+            
+            
+            rects = detector(gray, 0)
 
-                    # Mostrar el recuadro azul de "Imagen estática"
-                    cv2.rectangle(frame, (0, 0), (frame.shape[1], frame.shape[0]), color, cv2.FILLED)
-                    cv2.putText(frame, text, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
-        else:
-            rostro_estatico = False
-            for (x, y, w, h) in faces:
-                roi_gray = gray[y:y + h, x:x + w]
-                roi_color = frame[y:y + h, x:x + w]
+            for rect in rects:
+                shape = predictor(gray, rect)
+                shape = face_utils.shape_to_np(shape)
 
-                rects = detector(gray, 0)
+                ojo_izquierdo = shape[36:42]
+                ojo_derecho = shape[42:48]
 
-                for rect in rects:
-                    shape = predictor(gray, rect)
-                    shape = face_utils.shape_to_np(shape)
+                ojo_izquierdo_hull = cv2.convexHull(ojo_izquierdo)
+                ojo_derecho_hull = cv2.convexHull(ojo_derecho)
 
-                    ojo_izquierdo = shape[36:42]
-                    ojo_derecho = shape[42:48]
+                cv2.drawContours(frame, [ojo_izquierdo_hull], -1, (0, 255, 0), 1)
+                cv2.drawContours(frame, [ojo_derecho_hull], -1, (0, 255, 0), 1)
 
-                    ojo_izquierdo_hull = cv2.convexHull(ojo_izquierdo)
-                    ojo_derecho_hull = cv2.convexHull(ojo_derecho)
+                tiempo_actual_parpadeo = time.time()
+                if detectar_parpadeo(roi_gray, shape):
+                    print("Parpadeo detectado")
+                    tiempo_inicial_parpadeo = time.time()
+                    
+                else:
+                    print("No se detecta parpadeo")
+                    if tiempo_actual_parpadeo - tiempo_inicial_parpadeo >= tiempo_estatico:
+                        label = "Imagen estatica"
+                        color = (255, 0, 0)
+                        text = label
 
-                    cv2.drawContours(frame, [ojo_izquierdo_hull], -1, (0, 255, 0), 1)
-                    cv2.drawContours(frame, [ojo_derecho_hull], -1, (0, 255, 0), 1)
-
-                    if not detectar_parpadeo(roi_gray, shape):
-                        tiempo_inicial_parpadeo = time.time()  # Reiniciar el contador de tiempo de parpadeo
-                        parpadeo_detectado = True
-
+                        # Mostrar el recuadro azul de "Imagen estática"
+                        cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
+                        cv2.putText(frame, text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
+                    else:
                         label_id, confidence = recognizer.predict(roi_gray)
                         if confidence < 70:
                             label = [k for k, v in label_map.items() if v == label_id][0]
@@ -142,14 +136,8 @@ def autenticar(label_map):
                             text = label
 
                         cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
-                        cv2.putText(frame, text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
-
-                    elif parpadeo_detectado:
-                        print("parpadeo detectado")
-                        tiempo_actual_parpadeo = time.time()
-                        tiempo_transcurrido_parpadeo = tiempo_actual_parpadeo - tiempo_inicial_parpadeo
-                        if tiempo_transcurrido_parpadeo >= tiempo_parpadeo:
-                            parpadeo_detectado = False
+                        cv2.putText(frame, text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)  
+        
 
         cv2.putText(frame, f'Presione ESC para salir', (10, 20), 2, 0.5, (128, 0, 255), 1, cv2.LINE_AA)
         cv2.imshow(f'Sistema de Reconocimiento Facial', frame)
@@ -161,10 +149,10 @@ def autenticar(label_map):
     cv2.destroyAllWindows()
 
 # Entrenar el modelo (ejecutar solo una vez)
-# label_map = entrenar_modelo()
+label_map = entrenar_modelo()
 
 # Guardar label_map en un archivo JSON
-# guardar_label_map(label_map)
+guardar_label_map(label_map)
 
 # Autenticar a partir del modelo entrenado
 # Cargar label_map desde el archivo JSON
