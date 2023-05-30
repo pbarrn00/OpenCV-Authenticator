@@ -13,7 +13,7 @@ def cargar_label_map():
     return label_map
 
 def entrenar_modelo():
-    data_dir = 'usuarios_registrados'
+    data_dir = 'usuarios_fisher'
     image_paths = []
     labels = []
     label_id = 0
@@ -50,7 +50,7 @@ def autenticar(label_map):
     recognizer = cv2.face.FisherFaceRecognizer_create()
     recognizer.read('modelos\modelo_fisher.xml')
 
-    video_capture = cv2.VideoCapture(0)
+    video_capture = cv2.VideoCapture(1)
 
     while True:
         ret, frame = video_capture.read()
@@ -66,7 +66,7 @@ def autenticar(label_map):
 
             label_id, confidence = recognizer.predict(roi_gray_resized)
             print(confidence)
-            if confidence < 100:
+            if confidence < 40:
                 label = [k for k, v in label_map.items() if v == label_id][0]
                 color = (0, 255, 0)
                 text = label
@@ -92,6 +92,7 @@ def autenticar(label_map):
 label_map = entrenar_modelo()
 
 # Guardar label_map en un archivo JSON
+
 guardar_label_map(label_map)
 
 # Autenticar a partir del modelo entrenado

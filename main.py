@@ -50,7 +50,7 @@ def autenticar(label_map):
     recognizer = cv2.face.LBPHFaceRecognizer_create()
     recognizer.read('modelos/modelo_LBPHF.xml')
 
-    video_capture = cv2.VideoCapture(0)
+    video_capture = cv2.VideoCapture(1)
 
     while True:
         ret, frame = video_capture.read()
@@ -63,7 +63,7 @@ def autenticar(label_map):
 
             label_id, confidence = recognizer.predict(roi_gray)
             print(confidence)
-            if confidence < 100:
+            if confidence < 70:
                 label = [k for k, v in label_map.items() if v == label_id][0]
                 color = (0, 255, 0)
                 text = label
@@ -86,7 +86,7 @@ def autenticar(label_map):
 
 
 # Entrenar el modelo (ejecutar solo una vez)
-label_map = entrenar_modelo()
+#label_map = entrenar_modelo()
 
 # Guardar label_map en un archivo JSON
 #guardar_label_map(label_map)
