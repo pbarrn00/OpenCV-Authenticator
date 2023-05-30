@@ -1,144 +1,171 @@
+import dlib
 import cv2
+from imutils import face_utils
 import numpy as np
-import sys
-import os
+import json
+import time
 
-# Cargar el clasificador frontal de Haar para detección de rostros utilizado en la práctica 4
-face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+def guardar_label_map(label_map):
+    with open('json/label_map.json', 'w') as file:
+        json.dump(label_map, file)
 
-def detectar_movimiento(frames, umbral, area_minima):
+def cargar_label_map():
+    with open('json/label_map.json', 'r') as file:
+        label_map = json.load(file)
+    return label_map
 
-    # Calcular la diferencia acumulativa entre los frames
-    diff_acumulada = np.zeros_like(frames[0], dtype=np.float32)
-    for frame in frames:
-        diff_frame = cv2.absdiff(frame, frames[0])
-        diff_acumulada += diff_frame.astype(np.float32)
-    
-    # Aplicar un umbral para obtener una imagen binaria del movimiento
-    umbralizado = cv2.threshold(diff_acumulada, umbral, 255, cv2.THRESH_BINARY)[1].astype(np.uint8)
-    
-    # Encontrar los contornos de los objetos en movimiento
-    _, contornos, _ = cv2.findContours(umbralizado, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    
-    # Verificar si se detecta movimiento significativo
-    movimiento_detectado = False
-    for contorno in contornos:
-        if cv2.contourArea(contorno) > area_minima:
-            movimiento_detectado = True
-            break
-    
-    return movimiento_detectado
+def detectar_parpadeo(roi_gray, shape):
+    ojo_izquierdo = shape[36:42]
+    ojo_derecho = shape[42:48]
 
+    ratio_izquierdo = calcular_ratio_parpadeo(ojo_izquierdo)
+    ratio_derecho = calcular_ratio_parpadeo(ojo_derecho)
 
-# Inicializar la cámara 
-# Está inicializada a 1 para que utilice app móvil IRIUN WEBCAM
-video = cv2.VideoCapture(1)
+    ratio_parpadeo = (ratio_izquierdo + ratio_derecho) / 2
 
-# Parámetros de ajuste
-n_frames = 2  # Número de frames a acumular
-umbral = 30  # Ajusta este valor según tus necesidades
-area_minima = 100  # Ajusta este valor según tus necesidades
-
-# Leer el primer frame
-_, frame = video.read()
-
-# Convertir a escala de grises
-gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-# Inicializar la lista de frames acumulados
-frames_acumulados = [gray] * n_frames
-
-# Definir y cargar usuarios registrados
-usuarios_dict = {}  # Diccionario para mapear nombres de usuarios a etiquetas
-usuarios_imagenes = []
-usuarios_etiquetas = []
-carpeta_usuarios = 'usuarios_registrados'
-
-usuarios = os.listdir(carpeta_usuarios)
-for i, usuario in enumerate(usuarios):
-    usuarios_dict[usuario] = i
-
-    carpeta_usuario = os.path.join(carpeta_usuarios, usuario)
-    if os.path.isdir(carpeta_usuario):
-        for imagen_nombre in os.listdir(carpeta_usuario):
-            imagen_path = os.path.join(carpeta_usuario, imagen_nombre)
-            imagen = cv2.imread(imagen_path, cv2.IMREAD_GRAYSCALE)
-            usuarios_imagenes.append(imagen)
-            usuarios_etiquetas.append(i)
-
-# Crear el modelo de reconocimiento facial
-modelo = cv2.face.LBPHFaceRecognizer_create()
-modelo.train(usuarios_imagenes, np.array(usuarios_etiquetas, dtype=np.int32))
-
-# Variables para contar las imágenes capturadas y el usuario identificado
-image_count = 0
-usuario_identificado = None
-
-# Bucle principal
-while True:
-   # Leer el siguiente frame
-    _, frame = video.read()
-
-    # Convertir a escala de grises
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-    # Agregar el frame actual a la lista de frames acumulados
-    frames_acumulados.append(gray)
-    
-    # Mantener solo los últimos n_frames en la lista
-    frames_acumulados = frames_acumulados[-n_frames:]
-    
-    # Comprobar si hay movimiento significativo
-    hay_movimiento = detectar_movimiento(frames_acumulados, umbral, area_minima)
-    
-    # Mostrar el resultado
-    if hay_movimiento:
-        print("Persona real detectada")
+    if ratio_parpadeo < 0.18:
+        return True
     else:
-        print("Imagen estática o movimiento insignificante")
+        return False
 
-    # Detectar rostros en la imagen
-    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5, minSize=(30, 30))
+def calcular_ratio_parpadeo(ojo):
+    a = np.linalg.norm(ojo[1] - ojo[5])
+    b = np.linalg.norm(ojo[2] - ojo[4])
+    c = np.linalg.norm(ojo[0] - ojo[3])
 
-    k = cv2.waitKey(1)
+    ratio = (a + b) / (2.0 * c)
+    return ratio
 
-    if k == 27:
-        break
+def entrenar_modelo():
+    data_dir = 'usuarios_registrados'
+    image_paths = []
+    labels = []
+    label_id = 0
+    label_map = {}
 
-    # Iterar sobre los rostros detectados
-    for (x, y, w, h) in faces:
+    for root, dirs, files in os.walk(data_dir):
+        for file in files:
+            if file.endswith('.jpg') or file.endswith('.png'):
+                image_path = os.path.join(root, file)
+                label = os.path.basename(root)
 
-        # Recortar el rostro de la imagen original
-        face_image = gray[y:y+h, x:x+w]
+                if label not in label_map:
+                    label_map[label] = label_id
+                    label_id += 1
 
-        # Realizar la predicción del usuario
-        etiqueta_predicha, confianza = modelo.predict(face_image)
+                image_paths.append(image_path)
+                labels.append(label_map[label])
 
-        # Buscar el nombre del usuario en base a la etiqueta predicha
-        nombre_usuario = [usuario for usuario, etiqueta in usuarios_dict.items() if etiqueta == etiqueta_predicha][0]
+    face_images = []
+    for image_path in image_paths:
+        image = cv2.imread(image_path)
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        face_images.append(gray)
 
-        # Dibujar un rectángulo alrededor del rostro
-        if usuario_identificado == nombre_usuario:
-            color_rectangulo = (0, 255, 0)  # Color verde para usuarios identificados
+    recognizer = cv2.face.LBPHFaceRecognizer_create()
+    recognizer.train(face_images, np.array(labels, dtype=np.int32))
+    recognizer.save('modelos/modelo_LBPHF_advanced.xml')
+    print("Modelo entrenado y guardado con éxito.")
+
+    return label_map
+
+def autenticar(label_map):
+    face_cascade = cv2.CascadeClassifier('clasificadores/haarcascade_frontalface_default.xml')
+    recognizer = cv2.face.LBPHFaceRecognizer_create()
+    recognizer.read('modelos/modelo_LBPHF_advanced.xml')
+
+    detector = dlib.get_frontal_face_detector()
+    predictor = dlib.shape_predictor('shape/shape_predictor_68_face_landmarks.dat')
+
+    video_capture = cv2.VideoCapture(1)
+
+    tiempo_parpadeo = 0.3  # Tiempo en segundos para considerar un parpadeo
+    tiempo_estatico = 5.0  # Tiempo en segundos para considerar una imagen estática
+
+    tiempo_inicial_parpadeo = time.time()
+    tiempo_inicial_estatico = time.time()
+    parpadeo_detectado = False
+    rostro_estatico = False
+
+    while True:
+        ret, frame = video_capture.read()
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+
+        if len(faces) == 0:
+            if rostro_estatico:
+                tiempo_actual_estatico = time.time()
+                tiempo_transcurrido_estatico = tiempo_actual_estatico - tiempo_inicial_estatico
+                if tiempo_transcurrido_estatico >= tiempo_estatico:
+                    label = "Imagen estática"
+                    color = (255, 0, 0)
+                    text = label
+                    rostro_estatico = True
+
+                    # Mostrar el recuadro azul de "Imagen estática"
+                    cv2.rectangle(frame, (0, 0), (frame.shape[1], frame.shape[0]), color, cv2.FILLED)
+                    cv2.putText(frame, text, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
         else:
-            color_rectangulo = (0, 0, 255)  # Color rojo para usuarios desconocidos
+            rostro_estatico = False
+            for (x, y, w, h) in faces:
+                roi_gray = gray[y:y + h, x:x + w]
+                roi_color = frame[y:y + h, x:x + w]
 
-        cv2.rectangle(frame, (x, y), (x+w, y+h), color_rectangulo, 2)
+                rects = detector(gray, 0)
 
-        if confianza < 70:  # Umbral de confianza para la identificación del usuario
-            usuario_identificado = nombre_usuario
-            color_rectangulo = (0, 255, 0)  # Color verde para usuarios registrados
-        else:
-            usuario_identificado = None
-            color_rectangulo = (0, 0, 255)  # Color rojo para usuarios no registrados
+                for rect in rects:
+                    shape = predictor(gray, rect)
+                    shape = face_utils.shape_to_np(shape)
 
-        # Mostrar el nombre del usuario en la interfaz gráfica
-        cv2.putText(frame, usuario_identificado or "Desconocido", (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color_rectangulo, 1, cv2.LINE_AA)
-        
-    cv2.putText(frame, f'Presione ESC para salir', (10, 20), 2, 0.5, (128, 0, 255), 1, cv2.LINE_AA)
-    # Mostrar el fotograma con los rectángulos dibujados
-    cv2.imshow('Streaming de Video', frame)
+                    ojo_izquierdo = shape[36:42]
+                    ojo_derecho = shape[42:48]
 
-# Liberar los recursos
-video.release()
-cv2.destroyAllWindows()
+                    ojo_izquierdo_hull = cv2.convexHull(ojo_izquierdo)
+                    ojo_derecho_hull = cv2.convexHull(ojo_derecho)
+
+                    cv2.drawContours(frame, [ojo_izquierdo_hull], -1, (0, 255, 0), 1)
+                    cv2.drawContours(frame, [ojo_derecho_hull], -1, (0, 255, 0), 1)
+
+                    if not detectar_parpadeo(roi_gray, shape):
+                        tiempo_inicial_parpadeo = time.time()  # Reiniciar el contador de tiempo de parpadeo
+                        parpadeo_detectado = True
+
+                        label_id, confidence = recognizer.predict(roi_gray)
+                        if confidence < 70:
+                            label = [k for k, v in label_map.items() if v == label_id][0]
+                            color = (0, 255, 0)
+                            text = label
+                        else:
+                            label = "Desconocido"
+                            color = (0, 0, 255)
+                            text = label
+
+                        cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
+                        cv2.putText(frame, text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
+
+                    elif parpadeo_detectado:
+                        print("parpadeo detectado")
+                        tiempo_actual_parpadeo = time.time()
+                        tiempo_transcurrido_parpadeo = tiempo_actual_parpadeo - tiempo_inicial_parpadeo
+                        if tiempo_transcurrido_parpadeo >= tiempo_parpadeo:
+                            parpadeo_detectado = False
+
+        cv2.putText(frame, f'Presione ESC para salir', (10, 20), 2, 0.5, (128, 0, 255), 1, cv2.LINE_AA)
+        cv2.imshow(f'Sistema de Reconocimiento Facial', frame)
+
+        if cv2.waitKey(1) == 27:
+            break
+
+    video_capture.release()
+    cv2.destroyAllWindows()
+
+# Entrenar el modelo (ejecutar solo una vez)
+# label_map = entrenar_modelo()
+
+# Guardar label_map en un archivo JSON
+# guardar_label_map(label_map)
+
+# Autenticar a partir del modelo entrenado
+# Cargar label_map desde el archivo JSON
+label_map = cargar_label_map()
+autenticar(label_map)
