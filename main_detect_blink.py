@@ -93,7 +93,6 @@ def autenticar(label_map):
             roi_gray = gray[y:y + h, x:x + w]
             roi_color = frame[y:y + h, x:x + w]
             
-            
             rects = detector(gray, 0)
 
             for rect in rects:
@@ -113,12 +112,23 @@ def autenticar(label_map):
                 if detectar_parpadeo(roi_gray, shape):
                     print("Parpadeo detectado")
                     tiempo_inicial_parpadeo = time.time()
-                    
+                    label_id, confidence = recognizer.predict(roi_gray)
+                    if confidence < 70:
+                        label = [k for k, v in label_map.items() if v == label_id][0]
+                        color = (0, 255, 0)
+                        text = label
+                    else:
+                        label = "Desconocido"
+                        color = (0, 0, 255)
+                        text = label
+
+                    cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
+                    cv2.putText(frame, text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
                 else:
                     print("No se detecta parpadeo")
                     if tiempo_actual_parpadeo - tiempo_inicial_parpadeo >= tiempo_estatico:
                         label = "Imagen estatica"
-                        color = (255, 0, 0)
+                        color = (0, 128, 255)
                         text = label
 
                         # Mostrar el recuadro azul de "Imagen estática"
@@ -149,10 +159,10 @@ def autenticar(label_map):
     cv2.destroyAllWindows()
 
 # Entrenar el modelo (ejecutar solo una vez)
-label_map = entrenar_modelo()
+#label_map = entrenar_modelo()
 
 # Guardar label_map en un archivo JSON
-guardar_label_map(label_map)
+#guardar_label_map(label_map)
 
 # Autenticar a partir del modelo entrenado
 # Cargar label_map desde el archivo JSON
