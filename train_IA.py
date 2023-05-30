@@ -18,7 +18,7 @@ except IndexError:
 
 # Inicializar la cámara 
 # Está inicializada a 1 para que utilice app móvil IRIUN WEBCAM
-cap = cv2.VideoCapture(1)
+cap = cv2.VideoCapture(0)
 faceClassif = cv2.CascadeClassifier('clasificadores\haarcascade_frontalface_default.xml')
 count = 0
 max_images = int(sys.argv[1])  # Número máximo de imágenes que se guardarán
