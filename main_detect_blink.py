@@ -78,7 +78,7 @@ def autenticar(label_map):
     detector = dlib.get_frontal_face_detector()
     predictor = dlib.shape_predictor('shape/shape_predictor_68_face_landmarks.dat')
 
-    video_capture = cv2.VideoCapture(0)
+    video_capture = cv2.VideoCapture(1)
 
     tiempo_estatico = 10.0 # Tiempo en segundos para considerar una imagen estática
 
